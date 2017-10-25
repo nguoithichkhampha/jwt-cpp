@@ -25,6 +25,7 @@
 #include <sstream>
 #include <string.h>
 #include <string>
+#include <openssl/hmac.h>
 
 HMACValidator::HMACValidator(const std::string &algorithm, const EVP_MD *md,
                              const std::string &key)
@@ -60,20 +61,25 @@ int HMACValidator::const_time_cmp(const uint8_t *a, const uint8_t *b,
 
 bool HMACValidator::Sign(const uint8_t *header, size_t num_header,
                          uint8_t *signature, size_t *num_signature) const {
-  if (signature == NULL || *num_signature < key_size_) {
-    *num_signature = key_size_;
-    return false;
-  }
-  HMAC_CTX *ctx = HMAC_CTX_new();
-  HMAC_Init_ex(ctx, key_.c_str(), key_.size(), md_, NULL);
-  bool sign = HMAC_Update(ctx, header, num_header) &&
-              HMAC_Final(ctx, signature, (unsigned int *)num_signature);
-  HMAC_CTX_free(ctx);
-  return sign;
+    if (signature == NULL || *num_signature < key_size_) {
+        *num_signature = key_size_;
+        return false;
+    }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    // OpenSSL 1.0.2j
+    HMAC_CTX ctx;
+    HMAC_Init_ex(&ctx, key_.c_str(), key_.size(), md_, NULL);
+    bool sign = HMAC_Update(&ctx, header, num_header) &&
+    HMAC_Final(&ctx, signature, (unsigned int *)num_signature);
+    HMAC_CTX_cleanup(&ctx);
+#else
+    
+    HMAC_CTX *ctx = HMAC_CTX_new();
+    HMAC_Init_ex(ctx, key_.c_str(), key_.size(), md_, NULL);
+    bool sign = HMAC_Update(ctx, header, num_header) &&
+    HMAC_Final(ctx, signature, (unsigned int *)num_signature);
+    HMAC_CTX_free(ctx);
+#endif
+    return sign;
 }
 
-std::string HMACValidator::toJson() const {
-  std::ostringstream msg;
-  msg << "{ \"" << algorithm() << "\" : { \"secret\" : \"" << key_ << "\" } }";
-  return msg.str();
-}
