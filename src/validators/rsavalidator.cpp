@@ -48,13 +48,23 @@ RSAValidator::~RSAValidator() {
 bool RSAValidator::Verify(const json &jsonHeader, const uint8_t *header,
                           size_t num_header, const uint8_t *signature,
                           size_t num_signature) const {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    EVP_MD_CTX evp_md_ctx;
+    EVP_MD_CTX_init(&evp_md_ctx);
+    EVP_VerifyInit_ex(&evp_md_ctx, md_, NULL);
+    bool valid =
+    EVP_VerifyUpdate(&evp_md_ctx, header, num_header) == 1 &&
+    EVP_VerifyFinal(&evp_md_ctx, signature, num_signature, public_key_) == 1;
+    EVP_MD_CTX_cleanup(&evp_md_ctx);
+#else
     EVP_MD_CTX *evp_md_ctx = EVP_MD_CTX_new();
     EVP_MD_CTX_init(evp_md_ctx);
     EVP_VerifyInit_ex(evp_md_ctx, md_, NULL);
     bool valid =
-        EVP_VerifyUpdate(evp_md_ctx, header, num_header) == 1 &&
-        EVP_VerifyFinal(evp_md_ctx, signature, num_signature, public_key_) == 1;
+    EVP_VerifyUpdate(evp_md_ctx, header, num_header) == 1 &&
+    EVP_VerifyFinal(evp_md_ctx, signature, num_signature, public_key_) == 1;
     EVP_MD_CTX_free(evp_md_ctx);
+#endif
     return valid;
 }
 
@@ -63,27 +73,51 @@ bool RSAValidator::Sign(const uint8_t *header, size_t num_header,
     size_t needed = 0;
     bool success = false;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    EVP_MD_CTX evp_md_ctx;
+    EVP_MD_CTX_init(&evp_md_ctx);
+    EVP_DigestSignInit(&evp_md_ctx, NULL, md_, NULL, private_key_);
+    if (EVP_DigestSignUpdate(&evp_md_ctx, header, num_header) != 1) {
+        goto Error;
+    }
+    
+    // Figure out how many bytes we need
+    if (EVP_DigestSignFinal(&evp_md_ctx, NULL, &needed) != 1) {
+        goto Error;
+    }
+    
+    // We need more bytes please!
+    if (signature == NULL || *num_signature < needed) {
+        *num_signature = needed;
+        goto Error;
+    }
+    
+    success = EVP_DigestSignFinal(&evp_md_ctx, signature, num_signature) == 1;
+Error:
+    EVP_MD_CTX_cleanup(&evp_md_ctx);
+#else
     EVP_MD_CTX *evp_md_ctx = EVP_MD_CTX_new();
     EVP_MD_CTX_init(evp_md_ctx);
     EVP_DigestSignInit(evp_md_ctx, NULL, md_, NULL, private_key_);
     if (EVP_DigestSignUpdate(evp_md_ctx, header, num_header) != 1) {
         goto Error;
     }
-
+    
     // Figure out how many bytes we need
     if (EVP_DigestSignFinal(evp_md_ctx, NULL, &needed) != 1) {
         goto Error;
     }
-
+    
     // We need more bytes please!
     if (signature == NULL || *num_signature < needed) {
         *num_signature = needed;
         goto Error;
     }
-
+    
     success = EVP_DigestSignFinal(evp_md_ctx, signature, num_signature) == 1;
 Error:
     EVP_MD_CTX_free(evp_md_ctx);
+#endif
     return success;
 }
 

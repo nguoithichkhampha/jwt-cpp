@@ -30,7 +30,7 @@
 #include "jwt/timevalidator.h"
 #include "private/buildwrappers.h"
 
-#include "jwt/json.hpp"
+#include "json.hpp"
 using json = nlohmann::json;
 
 ClaimValidatorFactory::~ClaimValidatorFactory() {

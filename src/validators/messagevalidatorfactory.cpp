@@ -28,7 +28,7 @@
 #include <vector>
 #include "jwt/allocators.h"
 #include "jwt/hmacvalidator.h"
-#include "jwt/json.hpp"
+#include "json.hpp"
 #include "jwt/kidvalidator.h"
 #include "jwt/nonevalidator.h"
 #include "jwt/rsavalidator.h"

@@ -23,7 +23,7 @@
 #ifndef SRC_INCLUDE_JWT_CLAIMVALIDATOR_H_
 #define SRC_INCLUDE_JWT_CLAIMVALIDATOR_H_
 
-#include "jwt/json.hpp"
+#include "json.hpp"
 #include "jwt/jwt_error.h"
 #include <memory>
 #include <string>

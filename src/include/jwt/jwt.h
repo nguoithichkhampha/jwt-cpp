@@ -29,7 +29,7 @@
 #include <tuple>
 #include <utility>
 #include "jwt/claimvalidator.h"
-#include "jwt/json.hpp"
+#include "json.hpp"
 #include "jwt/messagevalidator.h"
 
 // Stack allocated signature.
